@@ -332,10 +332,11 @@ void win_log(char *line) {
     int len;
     static int log_len=0;
 	EnterCriticalSection(&cs);
-    len=strlen(line);
-    curr=(struct LIST *)malloc(sizeof(struct LIST)+len);
+    len=(int)strlen(line);
+    if(len > 512) len = 512;   /* cap log line length */
+    curr=(struct LIST *)malloc(sizeof(struct LIST)+len+1);  /* +1 for null terminator */
     curr->len=len;
-    strcpy(curr->txt, line);
+    strcpy_s(curr->txt, len+1, line);
     curr->next=NULL;
 
     if(tail)

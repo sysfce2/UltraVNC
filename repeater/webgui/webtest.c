@@ -114,6 +114,7 @@ DWORD WINAPI ThreadStartWeb(LPVOID lpParam)
 
 
 
+		wi_localhost = 1;   /* admin interface is local-only */
 		error = wi_init();
 		old_port=saved_portHTTP;
 		while (error<0)
