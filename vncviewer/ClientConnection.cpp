@@ -5802,7 +5802,12 @@ void* ClientConnection::run_undetached(void* arg) {
 		}
 		catch (rdr::Exception& e)
 		{
-			vnclog.Print(0,_T("rdr::Exception (1): %hs\n"),(const char*)e.str());
+			// EndOfStream is a normal disconnect (e.g. user closed the window or
+			// the server closed the connection), not an error.
+			if (strcmp(e.str(), "rdr::EndOfStream: read") == 0)
+				vnclog.Print(3, _T("rdr::Exception (1): %hs\n"), (const char*)e.str());
+			else
+				vnclog.Print(0, _T("rdr::Exception (1): %hs\n"), (const char*)e.str());
 			// m_pFileTransfer->m_fFileTransferRunning = false;
 			// m_pTextChat->m_fTextChatRunning = false;
 			// throw QuietException(e.str());

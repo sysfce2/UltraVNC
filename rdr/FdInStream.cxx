@@ -36,6 +36,15 @@
 
 using namespace rdr;
 
+// On Windows, WSAEINTR (10004) is returned when a blocking socket call is
+// cancelled (e.g. the socket is closed while recv/select is blocking).
+// Treat it as a normal end-of-stream rather than an unknown system error.
+#ifdef _WIN32
+static bool isCancelledBlockingCall(int err) { return err == WSAEINTR; }
+#else
+static bool isCancelledBlockingCall(int /*err*/) { return false; }
+#endif
+
 enum { DEFAULT_BUF_SIZE = 8192,
        MIN_BULK_SIZE = 1024 };
 
@@ -233,8 +242,10 @@ int FdInStream::readWithTimeoutOrCallback(void* buf, int len)
   if (timing)
     before=Passedusecs();
 
-  if (fd==INVALID_SOCKET) 
-	  throw SystemException("read",errno);
+  if (fd==INVALID_SOCKET) {
+    if (isCancelledBlockingCall(errno)) throw EndOfStream("read");
+    throw SystemException("read",errno);
+  }
 
   int n=0;
   if (!m_fReadFromNetRectBuf)
@@ -251,14 +262,18 @@ int FdInStream::readWithTimeoutOrCallback(void* buf, int len)
 			  (*blockCallback)(blockCallbackArg);
 	  }
   }
-	if (fd==INVALID_SOCKET) 
-		throw SystemException("read",errno);
+  if (fd==INVALID_SOCKET) {
+    if (isCancelledBlockingCall(errno)) throw EndOfStream("read");
+    throw SystemException("read",errno);
+  }
   bool fAlreadyCounted = false; // sf@2004 - Avoid to count the plugin processed bytes twice...
 
   while (true)
   {
-	  if (fd==INVALID_SOCKET) 
-		throw SystemException("read",errno);
+    if (fd==INVALID_SOCKET) {
+      if (isCancelledBlockingCall(errno)) throw EndOfStream("read");
+      throw SystemException("read",errno);
+    }
 	// sf@2002 - DSM Plugin hack - Only necessary for ZRLE encoding
 	// If we must read already restored data from DSMPLugin memory  
 	if (m_fReadFromNetRectBuf)
@@ -285,8 +300,10 @@ int FdInStream::readWithTimeoutOrCallback(void* buf, int len)
     fprintf(stderr,"read returned EINTR\n");
   }
 
-  if (n < 0) 
-	  throw SystemException("read",errno);
+  if (n < 0) {
+    if (isCancelledBlockingCall(errno)) throw EndOfStream("read");
+    throw SystemException("read",errno);
+  }
   if (n == 0) 
 	  throw EndOfStream("read");
 
